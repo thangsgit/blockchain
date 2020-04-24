@@ -70,7 +70,7 @@ class Blockchain {
            newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
            newBlock.height = height + 1;
 
-           if(height > 0){
+           if(height >= 0){
             let prevBlock = await self.getBlockByHeight(height);
             newBlock.previousBlockHash = prevBlock.hash;
            }
@@ -92,7 +92,7 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            let msg='${address}:${new Date().getTime().toString().slice(0,-3)}:starRegistry';
+            let msg=`${address}:${new Date().getTime().toString().slice(0,-3)}:starRegistry`;
             resolve(msg);
         });
     }
@@ -212,7 +212,7 @@ class Blockchain {
                         error: 'Unable to validate block, might have been tampered or previous hash is invalid'
                     })
                 }
-                prevBlockHash = block.prevBlockHash;
+                prevBlockHash = block.hash;
             }
             resolve(errorLog)
         });
