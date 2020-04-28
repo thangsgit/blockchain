@@ -64,19 +64,22 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-           let newBlock = block;
-           let height = await self.getChainHeight();
-           newBlock.time = new Date().getTime().toString().slice(0,-3);
-           newBlock.height = height + 1;
-
-           if(height >= 0){
-            let prevBlock = await self.getBlockByHeight(height);
-            newBlock.previousBlockHash = prevBlock.hash;
-           }
-           newBlock.hash = SHA256(JSON.stringify(newBlock)).toString();
-           self.chain.push(newBlock);
-           self.height = self.chain.length - 1;
-           resolve(newBlock);
+            try {
+                block.time = new Date().getTime().toString().slice(0, -3);
+                block.hash = SHA256(JSON.stringify(block)).toString();
+                block.height = this.chain.length;
+                if (this.height === -1) {
+                    block.previousBlockHash = null;
+                    resolve(block);
+                } else {
+                    block.previousBlockHash = this.chain[this.chain.length - 1].hash;
+                    resolve(block);
+                }
+                this.chain.push(block);
+                this.height = this.chain.length;
+            } catch {
+                reject('Error');
+            }
 
         });
     }
@@ -116,20 +119,44 @@ class Blockchain {
     submitStar(address, message, signature, star) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            let time = parseInt(message.split(':')[1]);
-            let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-            if(currentTime - time <= 5*60*1000){
-                let isValid = bitcoinMessage.verify(message, address, signature);
+         /*   try{
 
-                if(isValid){
-                    let addedBlock = await self._addBlock(new BlockClass.Block({owner: address, star: star}));
-                    resolve(addedBlock);
-                } else {
-                    reject('****Invalid Signature*****');
+                let time = parseInt(message.split(':')[1]);
+                let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+                if(currentTime - time < 5*60*1000){
+                    let isValid = bitcoinMessage.verify(message, address, signature);
+
+                    if(isValid){
+                        let addedBlock = await self._addBlock(new BlockClass.Block({owner: address, star: star}));
+                        resolve(addedBlock);
+                    } else {
+                        reject('****Invalid Signature*****');
+                    }
                 }
-            }
-            else {
-                reject('*** Please re-submit after 5 minutes interval*****');
+                else {
+                    reject('*** Please re-submit after 5 minutes interval*****');
+                }
+            } catch {
+                reject("***Error***");
+            }*/
+
+            try {
+                let current = parseInt(new Date().getTime().toString().slice(0, -3));
+                let messageT = parseInt(message.split(':')[1]);
+                if ((current - messageT) < (5 * 60000)) {
+                    let verified = bitcoinMessage.verify(message, address, signature);
+                    if (verified) {
+                        let block = new BlockClass.Block({owner: address, star: star});
+                        await this._addBlock(block);
+                        resolve(block);
+                    } else {
+                        reject("Error");
+                    }
+                } else {
+                    reject("Error");
+                }
+            } catch {
+                reject("Error");
             }
 
         });
@@ -180,14 +207,12 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            self.chain.forEach((blc) => {
-                let data = blc.getBData();
-                if(data){
-                    if (data.owner === address){
-                        stars.push(data);
-                    }
+            for (let i = 1; i < self.chain.length; i++) {
+                let body = this.chain[i].getBData();
+                if (body.owner === address) {
+                    stars.push(body);
                 }
-            });
+            }
             resolve(stars);
         });
     }
